@@ -1,9 +1,6 @@
-import argparse
-import json
-import string
+import argparse, string
 
 from inverted_class import InvertedIndex
-from nltk.stem import PorterStemmer
 
 
 def main() -> None:
@@ -16,43 +13,50 @@ def main() -> None:
 
     translator = str.maketrans("", "", string.punctuation)
 
-    # Handling file i/o
-    with open("data/movies.json", "r", encoding="utf-8") as file:
-        python_dict = json.load(file)
-
     with open("data/stopwords.txt", "r", encoding="utf-8") as file:
         content = file.read()
 
-    stemmer = PorterStemmer()
-
-    # if no movies in dict, then return empty
-    movies = python_dict.get("movies", [])
     stopwords = content.splitlines()
 
     match args.command:
         case "search":
             # search query
             to_search = args.query
+            normalized_query = to_search.translate(translator).lower()
             search_token = [
-                stemmer.stem(token)
-                for token in to_search.translate(translator).lower().split()
+                token
+                for token in normalized_query.split()
                 if token and token not in stopwords
             ]
 
             print(f"Searching for: {to_search}")
-            results = []
 
-            for movie in movies:
-                # search target title
-                title = movie.get("title", "")
-                normalized_title = title.translate(translator).lower()
+            index = InvertedIndex()
+            try:
+                index.load()
+            except FileNotFoundError:
+                raise FileNotFoundError("Please run Build option first")
 
-                if any(token in normalized_title for token in search_token):
-                    results.append(title)
+            results: list[int] = []
+            seen: set[int] = set()
+
+            for token in search_token:
+                doc_ids = index.get_document_id(token)
+                for doc_id in doc_ids:
+                    if doc_id in seen:
+                        continue
+                    results.append(doc_id)
+                    seen.add(doc_id)
+                    if len(results) >= 5:
+                        break
+                if len(results) >= 5:
+                    break
 
             if results:
-                for index, result in enumerate(results, start=1):
-                    print(f"{index}. {result}")
+                for doc_id in results:
+                    doc = index.get_information(doc_id) or {}
+                    title = doc.get("title", "")
+                    print(f"{doc_id}: {title}")
             else:
                 print("Not found :( ")
 
@@ -60,11 +64,6 @@ def main() -> None:
             index_build = InvertedIndex()
             index_build.build()
             index_build.save()
-            merida_docs = index_build.get_documents("merida")
-            if merida_docs:
-                print(f"First document for token 'merida' = {merida_docs[0]}")
-            else:
-                print("No documents for token 'merida'.")
 
         case _:
             parser.print_help()
