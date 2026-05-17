@@ -14,38 +14,36 @@ class InvertedIndex:
     def __init__(self) -> None:
         self.index: dict[str, set[int]] = {}
         self.docmap: dict[int, Any] = {}
-        self.translator = str.maketrans("", "", string.punctuation)
-        self.stemmer = PorterStemmer()
         self.term_frequencies: dict[int, Counter[str]] = {}
         self.doc_lengths: dict[int, int] = {}
         self.stopwords: set[str] = set()
+
+        self.translator = str.maketrans("", "", string.punctuation)
+        self.stemmer = PorterStemmer()
+
         self.__load_stopwords()
 
-    def _token_iter(self, text: str):
-        return self._normalize(text).split()
-
-    def _normalize(self, text: str) -> str:
-        return text.translate(self.translator).lower()
-
-    def tokens(
-        self, text: str, stopwords: set[str] | None = None, stem: bool = False
-    ) -> list[str]:
-        tokens = self._token_iter(text)
-
-        if stopwords:
-            tokens = filter(lambda token: token not in stopwords, tokens)
-
-        if stem:
-            tokens = map(self.stemmer.stem, tokens)
+    def tokens(self, text: str) -> list[str]:
+        # spliting and puncuation
+        tokens = text.translate(self.translator).lower().split()
+        # No stop words
+        tokens = filter(lambda token: token not in self.stopwords, tokens)
+        # Stem the tokens
+        tokens = map(self.stemmer.stem, tokens)
         return list(tokens)
 
     def __load_stopwords(self) -> None:
-        with open("data/stopwords.txt", "r", encoding="utf-8") as file:
-            content = file.read()
-        self.stopwords = set(content.splitlines())
+        stopword_file_path = "data/stopwords.txt"
+        if not os.path.exists(stopword_file_path):
+            self.stopwords = set()
+            raise FileNotFoundError(f"Stopfile not found: {stopword_file_path}")
+        else:
+            with open(stopword_file_path, "r", encoding="utf-8") as file:
+                content = file.read()
+            self.stopwords = set(content.splitlines())
 
     def __add_document(self, doc_id: int, text: str) -> None:
-        stemmed_tokens = self.tokens(text, stopwords=self.stopwords, stem=True)
+        stemmed_tokens = self.tokens(text)
 
         length = len(stemmed_tokens)
         self.doc_lengths.setdefault(doc_id, length)
@@ -58,10 +56,10 @@ class InvertedIndex:
             self.index.setdefault(token, set()).add(doc_id)
 
     def get_document_id(self, search_target: str) -> list[int]:
-        tokens = self.tokens(search_target, stopwords=self.stopwords, stem=True)
-        stemmed = tokens[0] if tokens else None
-        if not stemmed:
-            return []
+        tokens = self.tokens(search_target)
+        if len(tokens) != 1:
+            raise ValueError("Expected a single token term.")
+        stemmed = tokens[0]
         return sorted(list(self.index.get(stemmed, [])))
 
     def get_information(self, doc_id: int) -> Any:
@@ -126,7 +124,7 @@ class InvertedIndex:
             self.doc_lengths = pickle.load(file)
 
     def get_tf(self, doc_id: int, term: str) -> int:
-        tokens = self.tokens(term, stopwords=self.stopwords, stem=True)
+        tokens = self.tokens(term)
         stemmed = tokens[0] if tokens else None
         if not stemmed:
             return 0
@@ -139,10 +137,12 @@ class InvertedIndex:
         return len(self.docmap)
 
     def get_bm25_idf(self, search_target: str) -> float:
-        tokens = self.tokens(search_target, stopwords=self.stopwords, stem=True)
+        tokens = self.tokens(search_target)
         stemmed = tokens[0] if tokens else None
-        if not stemmed or len(tokens) > 1:
-            raise Exception("None / More than one Saerch word")
+        if not stemmed:
+            raise Exception("None")
+        if len(stemmed) != 1:
+            raise ValueError("Expect only a single term")
         # use stem for search
         N = self.total_items()
         df = len(self.index.get(stemmed, ()))
@@ -151,7 +151,7 @@ class InvertedIndex:
         return IDF
 
     def bm25_search(self, query: str, limit: int) -> list[tuple[int, str, float]]:
-        tokens = self.tokens(query, stopwords=self.stopwords, stem=True)
+        tokens = self.tokens(query)
         if not tokens or limit <= 0:
             return []
 

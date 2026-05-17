@@ -141,7 +141,6 @@ def main() -> None:
 
             # tf
             term_frequency = index.get_tf(id, term)
-            term_frequency = index.get_tf(id, term)
 
             tf_idf = result * term_frequency
             print(f"TF-IDF score of '{term}' in document '{id}': {tf_idf:.2f}")
