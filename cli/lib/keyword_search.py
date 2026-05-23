@@ -10,7 +10,7 @@ from constants import BM25_B, BM25_K1
 from nltk.stem import PorterStemmer
 
 
-class InvertedIndex:
+class KeywordSearch:
     def __init__(self) -> None:
         self.index: dict[str, set[int]] = {}
         self.docmap: dict[int, Any] = {}
@@ -151,8 +151,6 @@ class InvertedIndex:
         tokens = self.tokens(query)
         if not tokens or limit <= 0:
             return []
-
-        avg_len = self.__get_avg_doc_length()
 
         idf_by_token = {token: self.get_bm25_idf(token) for token in tokens}
         scores: dict[int, float] = {}

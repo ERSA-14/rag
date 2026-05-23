@@ -80,7 +80,7 @@ class SemanticSearch:
         if query_embed.size == 0:
             return []
 
-        query_norm = np.linalg.norm(query_embed)
+        query_norm = float(np.linalg.norm(query_embed))
         if query_norm == 0:
             return []
         norm_query = query_embed / query_norm
@@ -128,9 +128,7 @@ class ChunkedSemanticSearch(SemanticSearch):
                             }
                         )
         if not all_chunk:
-            self.chunk_embeddings = np.empty(
-                (0, self.model.get_sentence_embedding_dimension())
-            )
+            self.chunk_embeddings = np.array([], dtype=np.float32).reshape(0, 0)
             self.chunk_metadata = []
         else:
             raw_chunks = self.model.encode(all_chunk, show_progress_bar=True)
@@ -181,7 +179,7 @@ class ChunkedSemanticSearch(SemanticSearch):
 
     def search_chunks(self, query: str, limit: int = 10):
 
-        if self.chunk_embeddings is None:
+        if self.chunk_embeddings is None or not self.documents or not self.chunk_metadata:
             return []
 
         if not isinstance(self.chunk_embeddings, Iterable):
@@ -191,11 +189,11 @@ class ChunkedSemanticSearch(SemanticSearch):
         if embed_query is None or embed_query.size == 0:
             return []
 
-        query_norm = np.linalg.norm(embed_query)
+        query_norm = float(np.linalg.norm(embed_query))
         if query_norm == 0:
             return []
         norm_query = embed_query / query_norm
-        scores = np.dot(self.chunk_embeddings, norm_query)
+        scores = np.dot(np.asarray(self.chunk_embeddings), norm_query)
 
         movies_score = {}
         for i, score in enumerate(scores):

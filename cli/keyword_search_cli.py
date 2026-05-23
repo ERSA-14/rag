@@ -2,7 +2,7 @@ import argparse
 import math
 
 from lib.constants import BM25_B, BM25_K1
-from lib.inverted_class import InvertedIndex
+from lib.keyword_search import KeywordSearch
 
 
 def main() -> None:
@@ -58,7 +58,7 @@ def main() -> None:
 
             print(f"Searching for: {to_search}")
 
-            index = InvertedIndex()
+            index = KeywordSearch()
             try:
                 index.load()
             except FileNotFoundError:
@@ -93,12 +93,12 @@ def main() -> None:
                 print("Not found :( ")
 
         case "build":
-            index_build = InvertedIndex()
+            index_build = KeywordSearch()
             index_build.build()
             index_build.save()
 
         case "tf":
-            index = InvertedIndex()
+            index = KeywordSearch()
             try:
                 index.load()
             except FileNotFoundError:
@@ -109,7 +109,7 @@ def main() -> None:
 
         case "idf":
             word = args.wts
-            index = InvertedIndex()
+            index = KeywordSearch()
             try:
                 index.load()
             except FileNotFoundError:
@@ -126,7 +126,7 @@ def main() -> None:
             id = args.document_id
             term = args.word_to_search
 
-            index = InvertedIndex()
+            index = KeywordSearch()
             try:
                 index.load()
             except FileNotFoundError:
@@ -146,7 +146,7 @@ def main() -> None:
 
         case "bm25idf":
             word = args.term
-            index = InvertedIndex()
+            index = KeywordSearch()
             try:
                 index.load()
             except FileNotFoundError:
@@ -161,7 +161,7 @@ def main() -> None:
             k1 = args.k1
             b = args.b
 
-            index = InvertedIndex()
+            index = KeywordSearch()
             try:
                 index.load()
             except FileNotFoundError:
@@ -172,7 +172,7 @@ def main() -> None:
 
         case "bm25search":
             word = args.query
-            index = InvertedIndex()
+            index = KeywordSearch()
             try:
                 index.load()
             except FileNotFoundError:
