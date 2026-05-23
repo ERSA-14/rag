@@ -1,8 +1,8 @@
 import argparse
 import math
 
-from constants import BM25_B, BM25_K1
-from inverted_class import InvertedIndex
+from lib.constants import BM25_B, BM25_K1
+from lib.inverted_class import InvertedIndex
 
 
 def main() -> None:
