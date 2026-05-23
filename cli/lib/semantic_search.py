@@ -2,15 +2,16 @@ import hashlib
 import json
 import os
 import re
-import numpy as np
-
 from typing import Iterable
+
+import numpy as np
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 
-load_dotenv() 
+load_dotenv()
 
 MODEL = SentenceTransformer("all-MiniLM-L6-v2")
+
 
 class SemanticSearch:
     def __init__(self):
@@ -179,7 +180,11 @@ class ChunkedSemanticSearch(SemanticSearch):
 
     def search_chunks(self, query: str, limit: int = 10):
 
-        if self.chunk_embeddings is None or not self.documents or not self.chunk_metadata:
+        if (
+            self.chunk_embeddings is None
+            or not self.documents
+            or not self.chunk_metadata
+        ):
             return []
 
         if not isinstance(self.chunk_embeddings, Iterable):
@@ -220,7 +225,7 @@ class ChunkedSemanticSearch(SemanticSearch):
                 {
                     "id": doc.get("id"),
                     "title": doc.get("title"),
-                    "document": doc.get("description", "")[:100],
+                    "description": doc.get("description", "")[:100],
                     "score": each_sorted_movies.get("score"),
                 }
             )

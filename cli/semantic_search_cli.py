@@ -105,7 +105,6 @@ def main() -> None:
             results = semantic.search(word, limit)
             for index, result in enumerate(results, start=1):
                 print(f"{index}. {result['title']} (score: {result['score']:.4f})")
-                print(f"  {result['description'][:100]} ...")
 
         case "semantic_chunk":
             word = args.word

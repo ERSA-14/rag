@@ -6,8 +6,9 @@ import string
 from collections import Counter
 from typing import Any
 
-from constants import BM25_B, BM25_K1
 from nltk.stem import PorterStemmer
+
+from .constants import BM25_B, BM25_K1
 
 
 class KeywordSearch:
@@ -171,6 +172,11 @@ class KeywordSearch:
             results.append((doc_id, title, score))
 
         return results
+
+    def list_bm25_search(self, query_list: list[tuple[int, str, float]]) -> list[dict]:
+        field_names = ["id", "title", "score"]
+        dict_list = [dict(zip(field_names, record)) for record in query_list]
+        return dict_list
 
     def get_bm25_tf(self, doc_id: int, term: str, k1=BM25_K1, b=BM25_B) -> float:
         avg_len = self.__get_avg_doc_length()
