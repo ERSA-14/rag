@@ -1,5 +1,9 @@
 # Virtual environment
 .venv
+venv/
+env/
+.venv/
+.env
 
 # Training data
 data/
@@ -7,10 +11,30 @@ data/
 #python generated files
 __pycache__
 *.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
+__pycache__/
+*.py[cod]
+*$py.class
 
 # cache
-cache
+cache/
+
+.env
+env
+.env/
+
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+wheels/
+
+# IDE specific (optional but recommended)
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS specific
+.DS_Store
+Thumbs.db

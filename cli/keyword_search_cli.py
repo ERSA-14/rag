@@ -54,7 +54,6 @@ def main() -> None:
 
     match args.command:
         case "search":
-            # search query
             to_search = args.query
 
             print(f"Searching for: {to_search}")
@@ -178,9 +177,10 @@ def main() -> None:
                 index.load()
             except FileNotFoundError:
                 raise FileNotFoundError("Please build Index first")
-
+            i = 1
             for doc_id, title, score in index.bm25_search(word, limit=5):
-                print(f"({doc_id}) {title} - Score: {score:.2f}")
+                print(f"{i}. {title} (Score: {score:.4f})")
+                i += 1
 
         case _:
             parser.print_help()

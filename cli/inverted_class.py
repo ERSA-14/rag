@@ -24,11 +24,8 @@ class InvertedIndex:
         self.__load_stopwords()
 
     def tokens(self, text: str) -> list[str]:
-        # spliting and puncuation
         tokens = text.translate(self.translator).lower().split()
-        # No stop words
         tokens = filter(lambda token: token not in self.stopwords, tokens)
-        # Stem the tokens
         tokens = map(self.stemmer.stem, tokens)
         return list(tokens)
 
@@ -66,6 +63,9 @@ class InvertedIndex:
         return self.docmap.get(doc_id)
 
     def build(self) -> None:
+        if not os.path.exists("data/movies.json"):
+            print("Movies data file missing.")
+            return
         with open("data/movies.json", "r", encoding="utf-8") as file:
             movie_dict = json.load(file)
 
@@ -140,14 +140,11 @@ class InvertedIndex:
         tokens = self.tokens(search_target)
         stemmed = tokens[0] if tokens else None
         if not stemmed:
-            raise Exception("None")
-        if len(stemmed) != 1:
-            raise ValueError("Expect only a single term")
-        # use stem for search
+            return 0.0
         N = self.total_items()
         df = len(self.index.get(stemmed, ()))
 
-        IDF = math.log((N - df + 0.5) / (df + 0.5) + 1)
+        IDF = math.log((N - df + 0.5) / (df + 0.5) + 1.0)
         return IDF
 
     def bm25_search(self, query: str, limit: int) -> list[tuple[int, str, float]]:
@@ -155,10 +152,15 @@ class InvertedIndex:
         if not tokens or limit <= 0:
             return []
 
+        avg_len = self.__get_avg_doc_length()
+
         idf_by_token = {token: self.get_bm25_idf(token) for token in tokens}
         scores: dict[int, float] = {}
+        candidate_docs = set()
+        for token in tokens:
+            candidate_docs.update(self.index.get(token, set()))
 
-        for doc_id in self.docmap:
+        for doc_id in candidate_docs:
             score = 0.0
             for token in tokens:
                 score += self.get_bm25_tf(doc_id, token) * idf_by_token[token]
