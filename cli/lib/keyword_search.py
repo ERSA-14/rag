@@ -174,8 +174,18 @@ class KeywordSearch:
         return results
 
     def list_bm25_search(self, query_list: list[tuple[int, str, float]]) -> list[dict]:
-        field_names = ["id", "title", "score"]
-        dict_list = [dict(zip(field_names, record)) for record in query_list]
+        dict_list = []
+        for doc_id, title, score in query_list:
+            movie_data = self.docmap.get(doc_id, {})
+            description = movie_data.get("description", "")
+            dict_list.append(
+                {
+                    "id": doc_id,
+                    "title": title,
+                    "description": description,
+                    "score": score,
+                }
+            )
         return dict_list
 
     def get_bm25_tf(self, doc_id: int, term: str, k1=BM25_K1, b=BM25_B) -> float:

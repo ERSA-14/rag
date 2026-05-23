@@ -40,6 +40,28 @@ def main() -> None:
         help="how much result you want",
     )
 
+    rrf_search_parser = subparsers.add_parser(
+        "rrf-search",
+        help="Reciprocal Rank Fusion weighted hybrid score based on the BM25 (keyword) and semantic scores (semantic)",
+    )
+    rrf_search_parser.add_argument(
+        "query",
+        type=str,
+        help="search query",
+    )
+    rrf_search_parser.add_argument(
+        "-k",
+        type=int,
+        default=60,
+        help="controls how much more weight we give to higher-ranked results vs. lower-ranked ones",
+    )
+    rrf_search_parser.add_argument(
+        "--limit",
+        type=int,
+        default=5,
+        help="how much result you want",
+    )
+
     args = parser.parse_args()
 
     match args.command:
@@ -63,7 +85,25 @@ def main() -> None:
                 print(
                     f"BM25: {result.get('bm25_score')}, Semantic: {result.get('semantic_score')}"
                 )
-                print(f"{result.get('description')[:100]}")
+                print(f"{result.get('description', '')[:100]}")
+
+        case "rrf-search":
+            query = args.query
+            k = args.k
+            limit = args.limit
+            with open("data/movies.json", "r") as file:
+                documents = json.load(file)["movies"]
+            hybrid = HybridSearch(documents)
+            results = hybrid.rrf_search(query, k, limit)
+            i = 0
+            for result in results:
+                print(f"{i + 1}. {result['title']} ")
+                print(f" RRF Score: {result['rrf_score']}")
+                print(
+                    f" BM25 Rank: {result['bm25_rank']}, Semantic Rank: {result['semantic_rank']}"
+                )
+                print(f" {result['document']['description'][:100]}")
+                i += 1
 
         case _:
             parser.print_help()

@@ -23,47 +23,50 @@ class HybridSearch:
         bm_result = self.keyword_search.list_bm25_search(
             self._bm25_search(query, limit * 500)
         )
-        raw_scores = [score.get("score") for score in bm_result]
+        raw_scores = [score.get("score", 0.0) for score in bm_result]
         norm = normalize(raw_scores)
         for current_result, current_norm in zip(bm_result, norm):
             current_result["normalized_score"] = current_norm
 
         semantic_result = self.semantic_search.search_chunks(query, limit * 500)
-        raw_scores = [score.get("score") for score in semantic_result]
+        raw_scores = [score.get("score", 0.0) for score in semantic_result]
         norm = normalize(raw_scores)
         for current_result, current_norm in zip(semantic_result, norm):
             current_result["normalized_score"] = current_norm
 
-        combined = {}
+        combined: dict[int, dict] = {}
         for result in bm_result:
             doc_id = result.get("id")
-            movie = self.keyword_search.docmap[doc_id]
-            combined[doc_id] = {
-                "title": result.get("title"),
-                "description": movie.get("description"),
-                "bm25_score": result.get("normalized_score"),
-                "semantic_score": 0.0,
-                "hybrid_score": 0.0,
-            }
-        for result in semantic_result:
-            doc_id = result.get("id")
-            movie = self.keyword_search.docmap.get(doc_id, {})
-            description_text = movie.get("description")
-            if doc_id in combined:
-                if result["normalized_score"] > combined[doc_id]["semantic_score"]:
-                    combined[doc_id]["semantic_score"] = result["normalized_score"]
-            else:
+            if isinstance(doc_id, int):
                 combined[doc_id] = {
                     "title": result.get("title"),
-                    "description": description_text,
-                    "bm25_score": 0.0,
-                    "semantic_score": result.get("normalized_score"),
+                    "description": result.get("description", ""),
+                    "bm25_score": result.get("normalized_score"),
+                    "semantic_score": 0.0,
                     "hybrid_score": 0.0,
                 }
+        for result in semantic_result:
+            doc_id = result.get("id")
+            if isinstance(doc_id, int):
+                movie = self.keyword_search.docmap.get(doc_id)
+                description_text = (
+                    movie.get("description", "") if movie is not None else ""
+                )
+                if doc_id in combined:
+                    if result["normalized_score"] > combined[doc_id]["semantic_score"]:
+                        combined[doc_id]["semantic_score"] = result["normalized_score"]
+                else:
+                    combined[doc_id] = {
+                        "title": result.get("title"),
+                        "description": description_text,
+                        "bm25_score": 0.0,
+                        "semantic_score": result.get("normalized_score"),
+                        "hybrid_score": 0.0,
+                    }
         for result in combined.values():
-            hybrid_score = alpha * result.get("bm25_score") + (1 - alpha) * result.get(
-                "semantic_score"
-            )
+            hybrid_score = alpha * result.get("bm25_score", 0.0) + (
+                1 - alpha
+            ) * result.get("semantic_score", 0.0)
             result.update({"hybrid_score": hybrid_score})
 
         sorted_results = sorted(
@@ -72,7 +75,46 @@ class HybridSearch:
         return sorted_results
 
     def rrf_search(self, query: str, k: int, limit: int = 10) -> list[dict]:
-        raise NotImplementedError("RRF hybrid search is not implemented yet.")
+        bm_result = self.keyword_search.list_bm25_search(
+            self._bm25_search(query, limit * 500)
+        )
+        semantic_result = self.semantic_search.search_chunks(query, limit * 500)
+
+        combined = {}
+        for i, result in enumerate(bm_result, start=1):
+            doc_id = result.get("id")
+            if doc_id is not None:
+                rrf = rrf_score(i, k)
+                doc = self.keyword_search.docmap.get(doc_id, {})
+                combined[doc_id] = {
+                    "title": result["title"],
+                    "document": doc,
+                    "bm25_rank": i,
+                    "semantic_rank": None,
+                    "rrf_score": rrf,
+                }
+        for i, result in enumerate(semantic_result, start=1):
+            doc_id = result.get("id")
+            if doc_id is not None:
+                if doc_id in combined:
+                    if combined[doc_id]["semantic_rank"] is None:
+                        existing_score = combined[doc_id]["rrf_score"]
+                        combined[doc_id]["rrf_score"] = existing_score + rrf_score(i, k)
+                        combined[doc_id]["semantic_rank"] = i
+                else:
+                    rrf = rrf_score(i, k)
+                    doc = self.keyword_search.docmap.get(doc_id, {})
+                    combined[doc_id] = {
+                        "title": result["title"],
+                        "document": doc,
+                        "bm25_rank": None,
+                        "semantic_rank": i,
+                        "rrf_score": rrf,
+                    }
+        sorted_dict = sorted(
+            combined.values(), key=lambda x: x["rrf_score"], reverse=True
+        )[:limit]
+        return sorted_dict
 
 
 def normalize(score_list: list[float | int]):
@@ -92,3 +134,7 @@ def normalize(score_list: list[float | int]):
         else:
             result.append((val - min_val) / (max_val - min_val))
     return result
+
+
+def rrf_score(rank: int, k: int = 60):
+    return 1 / (k + rank)
