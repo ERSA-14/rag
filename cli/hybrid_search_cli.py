@@ -2,6 +2,7 @@ import argparse
 import json
 
 from lib.hybrid_search import HybridSearch, normalize
+from test_gemini import enhance_spelling, rewrite_query,query_expansion
 
 
 def main() -> None:
@@ -61,6 +62,12 @@ def main() -> None:
         default=5,
         help="how much result you want",
     )
+    rrf_search_parser.add_argument(
+        "--enhance",
+        type=str,
+        choices=["spell", "rewrite", "expand"],
+        help="Query enhancement method",
+    )
 
     args = parser.parse_args()
 
@@ -91,19 +98,24 @@ def main() -> None:
             query = args.query
             k = args.k
             limit = args.limit
+
             with open("data/movies.json", "r") as file:
                 documents = json.load(file)["movies"]
             hybrid = HybridSearch(documents)
+
+            if args.enhance == "spell":
+                query = enhance_spelling(query)
+
+            if args.enhance == "rewrite":
+                query = rewrite_query(query)
+
+            if args.enhance == "expand":
+                query = query_expansion(query)
+
             results = hybrid.rrf_search(query, k, limit)
-            i = 0
-            for result in results:
-                print(f"{i + 1}. {result['title']} ")
-                print(f" RRF Score: {result['rrf_score']}")
-                print(
-                    f" BM25 Rank: {result['bm25_rank']}, Semantic Rank: {result['semantic_rank']}"
-                )
-                print(f" {result['document']['description'][:100]}")
-                i += 1
+            for i, result in enumerate(results):
+                print(f"{i+1}) {result['title']} ")
+                    
 
         case _:
             parser.print_help()

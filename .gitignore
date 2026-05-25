@@ -21,7 +21,11 @@ cache/
 .env
 env
 .env/
+/env
 
+ENV
+.ENV
+ENV/
 
 # Distribution / packaging
 dist/

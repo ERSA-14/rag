@@ -74,7 +74,7 @@ class HybridSearch:
         )[:limit]
         return sorted_results
 
-    def rrf_search(self, query: str, k: int, limit: int = 10) -> list[dict]:
+    def rrf_search(self, query: str, k: int, limit: int = 10):
         bm_result = self.keyword_search.list_bm25_search(
             self._bm25_search(query, limit * 500)
         )
