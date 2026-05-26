@@ -88,3 +88,85 @@ def query_expansion(query: str) -> str:
     if response and response.text:
         return response.text
     return query
+
+
+def rerank_results_ind(query: str, title: str, desc: str):
+    response = client.models.generate_content(
+        model="gemma-4-31b-it",
+        config=types.GenerateContentConfig(
+            system_instruction="""
+            Rate how well this movie matches the search query.
+
+            Consider:
+            - Direct relevance to query
+            - User intent (what they're looking for)
+            - Content appropriateness
+
+            Rate 0-10 (10 = perfect match).
+            Output ONLY the number in your response, no other text or explanation.
+
+            Score:
+            """
+        ),
+        contents=f"""
+        Query: "{query}"
+        Movie: "{title} - {desc}"
+        """,
+    )
+    if response and response.text:
+        return int(response.text)
+
+def re_rank_batch(query:str|None,doc:list[dict]|list|None):
+    response = client.models.generate_content(
+        model="gemma-4-31b-it",
+        config=types.GenerateContentConfig(
+            system_instruction="""
+            Rank the movies listed below by relevance to the following search query.
+            Return the movie IDs in order of relevance, best match first.
+            
+            Your response must be a raw JSON array of integers.
+            Do not wrap the JSON in Markdown. Do not use a ```json code block.
+            Do not include any explanatory text.
+            
+            For example:
+            [75, 12, 34, 2, 1]
+            
+            Ranking:"""
+        ),
+        contents=f"""
+        Query: "{query}"
+        Movies: "{doc}"
+        """,
+    )
+    if response and response.text:
+        return response.text
+
+def re_rank_evaluate(query:str|None,doc:list[dict]|list|None):
+    response = client.models.generate_content(
+        model="gemma-4-31b-it",
+        config=types.GenerateContentConfig(
+            system_instruction="""
+            Rate how relevant each result is to this query on a 0-3 scale:
+
+            Scale:
+            - 3: Highly relevant
+            - 2: Relevant
+            - 1: Marginally relevant
+            - 0: Not relevant
+
+            Do NOT give any numbers other than 0, 1, 2, or 3.
+
+            Your response must be a raw JSON array of integers.
+            Do not wrap the JSON in Markdown. Do not use a ```json code block.
+            Do not include any explanatory text.
+
+            For example:
+            [2, 0, 3, 2, 0, 1]:"""
+        ),
+        contents=f"""
+        Query: "{query}"
+        Results:{chr(10).join(doc)}
+        """,
+    )
+    if response and response.text:
+        return response.text

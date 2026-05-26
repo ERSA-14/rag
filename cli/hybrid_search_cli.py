@@ -1,8 +1,17 @@
 import argparse
 import json
+import time
 
 from lib.hybrid_search import HybridSearch, normalize
-from test_gemini import enhance_spelling, rewrite_query,query_expansion
+from lib.test_gemini import (
+    enhance_spelling,
+    query_expansion,
+    re_rank_batch,
+    re_rank_evaluate,
+    rerank_results_ind,
+    rewrite_query,
+)
+from sentence_transformers import CrossEncoder
 
 
 def main() -> None:
@@ -68,6 +77,17 @@ def main() -> None:
         choices=["spell", "rewrite", "expand"],
         help="Query enhancement method",
     )
+    rrf_search_parser.add_argument(
+        "--rerank-method",
+        type=str,
+        choices=["individual", "batch", "cross_encoder"],
+        help="re-rank method is provided, after doing the initial RRF search",
+    )
+    rrf_search_parser.add_argument(
+        "--evaluate",
+        action="store_true",
+        help="use AI to evaluate results",
+    )
 
     args = parser.parse_args()
 
@@ -112,10 +132,72 @@ def main() -> None:
             if args.enhance == "expand":
                 query = query_expansion(query)
 
-            results = hybrid.rrf_search(query, k, limit)
-            for i, result in enumerate(results):
-                print(f"{i+1}) {result['title']} ")
-                    
+            if args.rerank_method == "individual":
+                results = hybrid.rrf_search(query, k, limit * 5)
+                for result in results:
+                    ai_score = rerank_results_ind(
+                        query, result["title"], result["document"]["description"]
+                    )
+                    result["ai_score"] = ai_score
+                    time.sleep(5)
+                results.sort(key=lambda x: x["ai_score"], reverse=True)
+
+            elif args.rerank_method == "batch":
+                results = hybrid.rrf_search(query, k, limit * 5)
+                new_results = [
+                    {"document": doc["document"]}
+                    for doc in results
+                    if "document" in doc
+                ]
+                ai_response = re_rank_batch(query, new_results)
+                if not ai_response:
+                    print("Batch re-rank failed: empty response from model.")
+                    return
+                list_of_ai_results = json.loads(ai_response)
+                for result in results:
+                    id = result["document"]["id"]
+                    result["ai_score"] = list_of_ai_results.index(id)
+
+                results.sort(key=lambda x: x["ai_score"])
+
+            elif args.rerank_method == "cross_encoder":
+                results = hybrid.rrf_search(query, k, limit * 5)
+                pairs = []
+                for doc in results:
+                    pairs.append(
+                        [
+                            query,
+                            f"{doc.get('title', '')} - {doc.get('document', '')}",
+                        ]
+                    )
+                cross_encoder = CrossEncoder(
+                    "cross-encoder/ms-marco-TinyBERT-L2-v2", device="cpu"
+                )
+                scores = cross_encoder.predict(pairs)
+                for result, score in zip(results, scores):
+                    result["ai_score"] = float(score)
+                results.sort(key=lambda x: x["ai_score"], reverse=True)
+            else:
+                results = hybrid.rrf_search(query, k, limit * 5)
+
+            if args.evaluate:
+                evaluation_items = [
+                    f"{doc.get('title', '')} - {doc.get('document', {}).get('description', '')}"
+                    for doc in results
+                ]
+                ai_response = re_rank_evaluate(query, evaluation_items)
+                if not ai_response:
+                    print("Evaluation failed: empty response from model.")
+                    return
+                scores = json.loads(ai_response)
+                for result, score in zip(results, scores):
+                    result["ai"] = score
+                for i, result in enumerate(results[:limit]):
+                    print(f"{i + 1}. {result['title']} {result.get('ai', 0)}/3")
+
+            else:
+                for i, result in enumerate(results[:limit]):
+                    print(f"{i + 1}. {result['title']} ")
 
         case _:
             parser.print_help()

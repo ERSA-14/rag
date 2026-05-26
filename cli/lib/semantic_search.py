@@ -5,13 +5,9 @@ import re
 from typing import Iterable
 
 import numpy as np
-from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 
-load_dotenv()
-
-MODEL = SentenceTransformer("all-MiniLM-L6-v2")
-
+MODEL = SentenceTransformer("all-MiniLM-L6-v2",device="cpu")
 
 class SemanticSearch:
     def __init__(self):
