@@ -2,6 +2,7 @@ import argparse
 import json
 import time
 
+import torch
 from lib.hybrid_search import HybridSearch, normalize
 from lib.test_gemini import (
     enhance_spelling,
@@ -170,8 +171,13 @@ def main() -> None:
                             f"{doc.get('title', '')} - {doc.get('document', '')}",
                         ]
                     )
+                device = "gpu"
+                if device == "gpu":
+                    device = "cuda"
+                if device == "cuda" and not torch.cuda.is_available():
+                    device = "cpu"
                 cross_encoder = CrossEncoder(
-                    "cross-encoder/ms-marco-TinyBERT-L2-v2", device="cpu"
+                    "cross-encoder/ms-marco-TinyBERT-L2-v2", device=device
                 )
                 scores = cross_encoder.predict(pairs)
                 for result, score in zip(results, scores):

@@ -116,21 +116,22 @@ def rerank_results_ind(query: str, title: str, desc: str):
     if response and response.text:
         return int(response.text)
 
-def re_rank_batch(query:str|None,doc:list[dict]|list|None):
+
+def re_rank_batch(query: str | None, doc: list[dict] | list | None):
     response = client.models.generate_content(
         model="gemma-4-31b-it",
         config=types.GenerateContentConfig(
             system_instruction="""
             Rank the movies listed below by relevance to the following search query.
             Return the movie IDs in order of relevance, best match first.
-            
+
             Your response must be a raw JSON array of integers.
             Do not wrap the JSON in Markdown. Do not use a ```json code block.
             Do not include any explanatory text.
-            
+
             For example:
             [75, 12, 34, 2, 1]
-            
+
             Ranking:"""
         ),
         contents=f"""
@@ -141,7 +142,10 @@ def re_rank_batch(query:str|None,doc:list[dict]|list|None):
     if response and response.text:
         return response.text
 
-def re_rank_evaluate(query:str|None,doc:list[dict]|list|None):
+
+def re_rank_evaluate(query: str | None, doc: list[str] | None):
+    doc_lines: list[str] = [str(item) for item in (doc or [])]
+    results_text = "\n".join(doc_lines)
     response = client.models.generate_content(
         model="gemma-4-31b-it",
         config=types.GenerateContentConfig(
@@ -164,8 +168,129 @@ def re_rank_evaluate(query:str|None,doc:list[dict]|list|None):
             [2, 0, 3, 2, 0, 1]:"""
         ),
         contents=f"""
-        Query: "{query}"
-        Results:{chr(10).join(doc)}
+        Query: "{query}",
+        Results:"{results_text}"
+        """,
+    )
+    if response and response.text:
+        return response.text
+
+
+def augument_generation(query: str | None, doc: list[dict] | list | None):
+    response = client.models.generate_content(
+        model="gemma-4-31b-it",
+        config=types.GenerateContentConfig(
+            system_instruction="""
+            You are a RAG agent for, a movie streaming service.
+            Your task is to provide a natural-language answer to the user's query based on documents retrieved during search.
+            Provide a comprehensive answer that addresses the user's query.
+
+            Do not use JSON, code blocks, arrays, or any special formatting.
+            Do not include any technical structures. Write in clear, everyday language.
+            Do not include any explanatory text.
+            Answer:"""
+        ),
+        contents=f"""
+        Query: "{query}",
+        Documents:"{doc}"
+        """,
+    )
+    if response and response.text:
+        return response.text
+
+
+def sum_generation(query: str | None, doc: list[dict] | list | None):
+    response = client.models.generate_content(
+        model="gemma-4-31b-it",
+        config=types.GenerateContentConfig(
+            system_instruction="""
+            Provide information useful to the query below by synthesizing data from multiple search results in detail.
+
+            The goal is to provide comprehensive information so that users know what their options are.
+            Your response should be information-dense and concise, with several key pieces of information about the genre, plot, etc. of each movie.
+
+            This should be tailored to our users. we are a movie streaming service.
+
+            Do not use JSON, code blocks, arrays, or any special formatting.
+            Do not include any technical structures. Write in clear, everyday language.
+            Do not include any explanatory text
+
+            Provide a comprehensive 3–4 sentence answer that combines information from multiple sources:"""
+        ),
+        contents=f"""
+        Query: "{query}",
+        Search results:"{doc}"
+        """,
+    )
+    if response and response.text:
+        return response.text
+
+
+def citi_generation(query: str | None, doc: list[dict] | list | None):
+    response = client.models.generate_content(
+        model="gemma-4-31b-it",
+        config=types.GenerateContentConfig(
+            system_instruction="""
+            Answer the query below and give information based on the provided documents.
+
+            The answer should be tailored to users of Hoopla, a movie streaming service.
+            If not enough information is available to provide a good answer, say so, but give the best answer possible while citing the sources available.
+
+            Instructions:
+            - Provide a comprehensive answer that addresses the query
+            - Cite sources in the format [1], [2], etc. when referencing information
+            - If sources disagree, mention the different viewpoints
+            - If the answer isn't in the provided documents, say "I don't have enough information"
+            - Be direct and informative
+
+             Do not use JSON, code blocks, arrays, or any special formatting.
+             Do not include any technical structures. Write in clear, everyday language.
+             Do not include any explanatory text
+
+            Answer::"""
+        ),
+        contents=f"""
+        Query: "{query}",
+        Documents:"{doc}"
+        """,
+    )
+    if response and response.text:
+        return response.text
+
+
+def qna_generation(query: str | None, doc: list[dict] | list | None):
+    response = client.models.generate_content(
+        model="gemma-4-31b-it",
+        config=types.GenerateContentConfig(
+            system_instruction="""
+            "Answer the user's question based on the provided movies that are available on our streaming service.
+
+            General instructions:
+            - Answer directly and concisely
+            - Use only information from the documents
+            - If the answer isn't in the documents, say "I don't have enough information"
+            - Cite sources when possible
+
+            Instructions:
+            - Answer questions directly and concisely
+            - Be casual and conversational
+            - Don't be cringe or hype-y
+            - Talk like a normal person would in a chat conversation
+
+            Guidance on types of questions:
+            - Factual questions: Provide a direct answer
+            - Analytical questions: Compare and contrast information from the documents
+            - Opinion-based questions: Acknowledge subjectivity and provide a balanced view
+
+             Do not use JSON, code blocks, arrays, or any special formatting.
+             Do not include any technical structures. Write in clear, everyday language.
+             Do not include any explanatory text
+
+            Answer::"""
+        ),
+        contents=f"""
+        Query: "{query}",
+        Documents:"{doc}"
         """,
     )
     if response and response.text:

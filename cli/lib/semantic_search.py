@@ -5,9 +5,16 @@ import re
 from typing import Iterable
 
 import numpy as np
+import torch
 from sentence_transformers import SentenceTransformer
 
-MODEL = SentenceTransformer("all-MiniLM-L6-v2",device="cpu")
+_device = "gpu"
+if _device == "gpu":
+    _device = "cuda"
+if _device == "cuda" and not torch.cuda.is_available():
+    _device = "cpu"
+MODEL = SentenceTransformer("all-MiniLM-L6-v2", device=_device)
+
 
 class SemanticSearch:
     def __init__(self):
