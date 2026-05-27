@@ -17,7 +17,7 @@ __pycache__/
 
 # cache
 cache/
-
+cache
 .env
 env
 .env/
